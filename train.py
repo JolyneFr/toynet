@@ -1,19 +1,29 @@
 import numpy as np
 from keras.datasets import cifar10
 from keras.utils import np_utils
-from keras.optimizer_v2.rmsprop import RMSProp
+from keras.optimizer_v2.adam import Adam
 from keras.preprocessing.image import ImageDataGenerator
-from keras.callbacks import LearningRateScheduler
+from keras.callbacks import (
+    LearningRateScheduler, ReduceLROnPlateau, ModelCheckpoint
+)
 from tensorflow.keras.utils import plot_model
 
 from ToyNet.model import ToyNet
 
+batch_size = 32
+epochs = 100
+
+
 def lr_schedule(epoch):
-    lrate = 0.001
-    if epoch > 50:
-        lrate = 0.0005
-    if epoch > 70:
-        lrate = 0.0003
+    lrate = 1e-3
+    if epoch > 90:
+        lrate *= 0.5e-3
+    elif epoch > 80:
+        lrate *= 1e-3
+    elif epoch > 60:
+        lrate *= 1e-2
+    elif epoch > 40:
+        lrate *= 1e-1
     return lrate
 
 # enlarge dataset
@@ -27,36 +37,47 @@ datagen = ImageDataGenerator(
 if __name__ == '__main__':
     # load data
     (x_train, y_train), (x_test, y_test) = cifar10.load_data()
-    x_train = x_train.astype('float32')
-    x_test = x_test.astype('float32')
+    x_train = x_train.astype('float32') / 255
+    x_test = x_test.astype('float32') / 255
 
     # z-score
-    mean = np.mean(x_train, axis=(0,1,2,3))
-    std = np.std(x_train, axis=(0,1,2,3))
-    x_train = (x_train-mean)/(std+1e-7)
-    x_test = (x_test-mean)/(std+1e-7)
+    mean = np.mean(x_train, axis=0)
+    x_train = (x_train - mean)
+    x_test = (x_test - mean)
 
     # categorical
     y_train = np_utils.to_categorical(y_train, 10)
     y_test = np_utils.to_categorical(y_test, 10)
 
     model = ToyNet((32, 32, 3), 10)
-    model.summary()
 
     datagen.fit(x_train)
-    rms_opt = RMSProp(lr=0.001, decay=1e-6)
+    model.compile(loss='categorical_crossentropy',
+              optimizer=Adam(lr=lr_schedule(0)),
+              metrics=['accuracy'])
+    model.summary()
 
-    batch_size = 64
-    model.compile(loss='categorical_crossentropy', optimizer=rms_opt, metrics=['accuracy'])
-    model.fit_generator(datagen.flow(x_train, y_train, batch_size=batch_size),\
-                    steps_per_epoch=x_train.shape[0] // batch_size,epochs=20,\
-                    verbose=1,validation_data=(x_test,y_test),callbacks=[LearningRateScheduler(lr_schedule)])
+    checkpoint = ModelCheckpoint(filepath="saved_model",
+                             monitor='val_acc',
+                             verbose=1,
+                             save_best_only=True)
 
-    model_json = model.to_json()
-    with open('model.json', 'w') as json_file:
-        json_file.write(model_json)
+    lr_scheduler = LearningRateScheduler(lr_schedule)
+
+    lr_reducer = ReduceLROnPlateau(factor=np.sqrt(0.1),
+                               cooldown=0,
+                               patience=5,
+                               min_lr=0.5e-6)
+
+    callbacks = [checkpoint, lr_reducer, lr_scheduler]
+
     model.save_weights('model.h5') 
     plot_model(model)
 
-    scores = model.evaluate(x_test, y_test, batch_size=128, verbose=1)
+    model.fit_generator(datagen.flow(x_train, y_train, batch_size=batch_size),
+                        validation_data=(x_test, y_test),
+                        epochs=epochs, verbose=1, workers=4,
+                        callbacks=callbacks)
+
+    scores = model.evaluate(x_test, y_test, verbose=1)
     print('\nTest result: %.3f loss: %.3f' % (scores[1]*100,scores[0]))

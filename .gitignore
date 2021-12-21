@@ -1,0 +1,7 @@
+.vscode
+.DS_Store
+.idea
+
+__pycache__
+model.h5
+model.json

@@ -18,6 +18,7 @@ To train ToyNet using CIFAR10 dataset, just type
 python train.py <case-name>
 ```
 `case-name` denotes the name of current training case, which should be unique.\
+Naming a test-case by its feature/param is a good habit.\
 It may take 1+ hour to complete training.
 
 ## Result Visualization

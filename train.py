@@ -26,6 +26,12 @@ datagen = ImageDataGenerator(
     validation_split=0.2
 )
 
+# standardize test data
+standardizer = ImageDataGenerator(
+    featurewise_center=True,
+    featurewise_std_normalization=True
+)
+
 def lr_schedule(epoch):
     lrate = 5e-4
     if epoch > 90:
@@ -89,15 +95,18 @@ if __name__ == '__main__':
     model.compile(loss='categorical_crossentropy',
                     optimizer=Adam(), metrics=['accuracy'])
     model.summary()
-    model.save_weights(f'training/toynet20/{case_name}/model.h5') 
     plot_model(model)
 
-    callbacks=training_callbacks(case_name)
     datagen.fit(x_train)
+    standardizer.fit(x_train)
+    callbacks=training_callbacks(case_name)
     
     model.fit(x=datagen.flow(x_train, y_train, subset='training'), 
         validation_data=datagen.flow(x_train, y_train, subset='validation'), 
         verbose=1, callbacks=callbacks, epochs=epochs)
 
-    scores = model.evaluate(datagen.flow(x_test, y_test), verbose=1)
+    # save training result
+    model.save_weights(f'training/toynet20/{case_name}/model.h5') 
+
+    scores = model.evaluate(standardizer.flow(x_test, y_test, ), verbose=1)
     print('\nTest result: %.3f loss: %.3f' % (scores[1] * 100,scores[0]))

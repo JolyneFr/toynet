@@ -8,7 +8,7 @@ from keras.callbacks import (
 )
 from tensorflow.keras.utils import plot_model
 
-from ToyNet.model import ToyNet
+from ToyNet.model import ToyNet20
 
 batch_size = 32
 epochs = 100
@@ -49,7 +49,7 @@ if __name__ == '__main__':
     y_train = np_utils.to_categorical(y_train, 10)
     y_test = np_utils.to_categorical(y_test, 10)
 
-    model = ToyNet((32, 32, 3), 10)
+    model = ToyNet20((32, 32, 3), 10)
 
     datagen.fit(x_train)
     model.compile(loss='categorical_crossentropy',

@@ -1,4 +1,6 @@
 import numpy as np
+import tensorflow as tf
+import random, os
 from keras.datasets import cifar10
 from keras.utils import np_utils
 from keras.optimizer_v2.adam import Adam
@@ -13,14 +15,22 @@ from ToyNet.model import ToyNet20
 batch_size = 32
 epochs = 100
 
+def set_seed(seed=42):
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    tf.set_random_seed(seed)
+
 
 def lr_schedule(epoch):
     lrate = 1e-3
     if epoch > 90:
-        lrate *= 0.5e-3
+        lrate *= 0.35e-3
     elif epoch > 80:
+        lrate *= 0.7e-3
+    elif epoch > 70:
         lrate *= 1e-3
-    elif epoch > 60:
+    elif epoch > 55:
         lrate *= 1e-2
     elif epoch > 40:
         lrate *= 1e-1
@@ -28,13 +38,17 @@ def lr_schedule(epoch):
 
 # enlarge dataset
 datagen = ImageDataGenerator(
-    rotation_range=15,
+    rotation_range=0,
     width_shift_range=0.1,
     height_shift_range=0.1,
     horizontal_flip=True,
 )
 
 if __name__ == '__main__':
+
+    # set random seed
+    set_seed(seed=2021)
+
     # load data
     (x_train, y_train), (x_test, y_test) = cifar10.load_data()
     x_train = x_train.astype('float32') / 255
@@ -58,7 +72,7 @@ if __name__ == '__main__':
     model.summary()
 
     checkpoint = ModelCheckpoint(filepath="saved_model",
-                             monitor='val_acc',
+                             monitor='val_accuracy',
                              verbose=1,
                              save_best_only=True)
 

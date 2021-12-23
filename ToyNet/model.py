@@ -1,7 +1,7 @@
 from tensorflow.keras import Model
 from tensorflow.python.keras.layers.core import Activation
 from tensorflow.keras.layers import (
-    ZeroPadding2D, Conv2D, MaxPooling2D, BatchNormalization, Flatten,
+    ZeroPadding2D, Conv2D, MaxPooling2D, BatchNormalization, Dropout,
     Activation, Add, GlobalAveragePooling2D, Dense, Input
 )
 
@@ -68,28 +68,29 @@ def ToyNet50(input_shape, classes=10, model_name='my_toynet'):
 
 
 
-def TinyToyBlock(x, filters, stride=1, kernel_size=3, shortcut_kind='Pool', name=None):
+def TinyToyBlock(x, filters, stride=1, shortcut_kind='Pool', name=None):
     """
     Base on ResNet20_v1, 
     which includes 2 x (3 x 3) Conv2D-BN-ReLU units.
-    Consider matching the output between shortcut & main
+    Consider matching the output between shortcut & main.
+    Preact optmize: put bn & relu before each conv2, it just works.
     """
-    
-    if shortcut_kind == 'Conv':
-        shortcut = Conv2D(filters, 1, strides=stride, padding='same', name=name+'_shortcut_conv')(x)
-    elif shortcut_kind == 'Pool':
-        shortcut = MaxPooling2D(1, strides=stride, name=name+'_shortcut_pool')(x) if stride > 1 else x
 
-    x = Conv2D(filters, kernel_size, strides=stride, padding='same', name=name+'_1_conv')(x)
     x = BatchNormalization(axis=-1, epsilon=eps, name=name+'_1_bn')(x)
     x = Activation('relu', name=name+'_1_relu')(x)
 
-    # ReLU after this unit
-    x = Conv2D(filters, kernel_size, strides=1, padding='same', name=name+'_2_conv')(x)
+    if shortcut_kind == 'Conv':
+        shortcut = Conv2D(filters, 1, strides=stride, use_bias=False, padding='same', name=name+'_shortcut_conv')(x)
+    elif shortcut_kind == 'Pool':
+        shortcut = MaxPooling2D(1, strides=stride, name=name+'_shortcut_pool')(x) if stride > 1 else x
+
+    x = Conv2D(filters, 3, strides=stride, use_bias=False, padding='same', name=name+'_1_conv')(x)
+    
     x = BatchNormalization(axis=-1, epsilon=eps, name=name+'_2_bn')(x)
+    x = Activation('relu', name=name+'_2_relu')(x)
+    x = Conv2D(filters, 3, strides=1, use_bias=False, padding='same', name=name+'_2_conv')(x)
 
     x = Add(name=name+'_merge')([shortcut, x])
-    x = Activation('relu', name=name+'_out_relu')(x)
     return x
 
 def TinyToyStack(x, filters, block_num, first_shortcut=True, name=None):
@@ -105,24 +106,24 @@ def TinyToyStack(x, filters, block_num, first_shortcut=True, name=None):
         x = TinyToyBlock(x, filters, name=name+'_block'+str(idx))
     return x
 
-def ToyNet20(input_shape, classes=10, model_name='my_toynet'):
+def ToyNet18(input_shape, classes=10, model_name='my_toynet'):
     """
-    Base on ResNet20_v1
+    Base on ResNet18, add preact-opt
     """
     inputs = Input(shape=input_shape)
 
-    x = Conv2D(16, 3, strides=1, padding='same', name='conv1_conv')(inputs)
-    x = BatchNormalization(axis=-1, epsilon=eps, name='conv1_bn')(x)
-    x = Activation('relu', name='conv1_relu')(x)
+    x = Conv2D(64, 3, strides=1, padding='same', use_bias=False, name='conv1_conv')(inputs)
 
-    x = TinyToyStack(x, 16, 3, first_shortcut=False, name='conv2')
-    x = TinyToyStack(x, 32, 3, name='conv3')
-    x = TinyToyStack(x, 64, 3, name='conv4')
+    x = TinyToyStack(x, 64, 2, first_shortcut=False, name='conv2')
+    x = TinyToyStack(x, 128, 2, name='conv3')
+    x = TinyToyStack(x, 256, 2, name='conv4')
+    x = TinyToyStack(x, 512, 2, name='conv5')
 
     x = GlobalAveragePooling2D(name='avg_pool')(x)
     outputs = Dense(classes, activation='softmax', kernel_initializer='he_normal', name='predictions')(x)
 
     return Model(inputs, outputs, name=model_name)
+
 
 
 

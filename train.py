@@ -3,7 +3,8 @@ import tensorflow as tf
 import random, os, sys
 from keras.datasets import cifar10
 from keras.utils import np_utils
-from keras.optimizer_v2.adam import Adam
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.optimizers.schedules import ExponentialDecay
 from keras.preprocessing.image import ImageDataGenerator
 from keras.callbacks import (
     LearningRateScheduler, ReduceLROnPlateau, 
@@ -11,7 +12,7 @@ from keras.callbacks import (
 )
 from tensorflow.keras.utils import plot_model
 
-from ToyNet.model import ToyNet20
+from ToyNet.model import ToyNet18
 
 epochs = 100
 
@@ -32,18 +33,20 @@ standardizer = ImageDataGenerator(
     featurewise_std_normalization=True
 )
 
-def lr_schedule(epoch):
-    lrate = 5e-4
+def lr_schedule_fn(epoch):
+    lrate = 6e-4
     if epoch > 90:
         lrate *= 2e-4
     elif epoch > 80:
-        lrate *= 5e-4
-    elif epoch > 65:
-        lrate *= 1e-3
-    elif epoch > 50:
-        lrate *= 1e-2
-    elif epoch > 30:
-        lrate *= 1e-1
+        lrate *= 4e-4
+    elif epoch > 70:
+        lrate *= 8e-4
+    elif epoch > 55:
+        lrate *= 2e-3
+    elif epoch > 35:
+        lrate *= 3e-2
+    elif epoch > 15:
+        lrate *= 4e-1
     return lrate
 
 def set_seed(seed=42):
@@ -73,9 +76,9 @@ def training_callbacks(case_name):
     #                          save_best_only=True)
 
     return [
-        ReduceLROnPlateau(patience=5, min_lr=0.5e-6), 
-        LearningRateScheduler(lr_schedule), 
-        TensorBoard(log_dir=log_path, histogram_freq=1),
+        ReduceLROnPlateau(factor=0.15, patience=5), 
+        LearningRateScheduler(lr_schedule_fn),
+        TensorBoard(log_dir=log_path, histogram_freq=1)
     ]
 
 if __name__ == '__main__':
@@ -91,11 +94,13 @@ if __name__ == '__main__':
 
     (x_train, y_train), (x_test, y_test) = load_processed_cifar10()
 
-    model = ToyNet20((32, 32, 3), 10)
+    model = ToyNet18((32, 32, 3), 10)
+
+    lr_scheduler = ExponentialDecay(initial_learning_rate=1e-3, decay_steps=epochs, decay_rate=0.96)
     model.compile(loss='categorical_crossentropy',
-                    optimizer=Adam(), metrics=['accuracy'])
+                    optimizer=Adam(learning_rate=6e-4), 
+                    metrics=['accuracy'])
     model.summary()
-    plot_model(model)
 
     datagen.fit(x_train)
     standardizer.fit(x_train)
@@ -107,6 +112,8 @@ if __name__ == '__main__':
 
     # save training result
     model.save_weights(f'training/toynet20/{case_name}/model.h5') 
+    plot_model(model, to_file=f'training/toynet20/{case_name}/model.png', show_shapes=True)
 
     scores = model.evaluate(standardizer.flow(x_test, y_test, ), verbose=1)
     print('\nTest result: %.3f loss: %.3f' % (scores[1] * 100,scores[0]))
+    

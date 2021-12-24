@@ -13,7 +13,8 @@ def TinyToyBlock(x, filters, stride=1, shortcut_kind='Pool', name=None):
     Base on basic_block of ResNet, 
     which includes 2 x (3 x 3) Conv2D-BN-ReLU units (BN-ReLU-Conv2D after preact).
     Preact optmize: put bn & relu before each conv2, it just works.
-    To avoid overfitting, add dropout after Conv2D
+    To avoid overfitting, add dropout after Conv2D.
+    As Recommended, dropout are added after ReLU layer, rate between 0.1-0.2.
     """
 
     x = BatchNormalization(axis=-1, epsilon=eps, name=name+'_1_bn')(x)
@@ -37,7 +38,9 @@ def TinyToyBlock(x, filters, stride=1, shortcut_kind='Pool', name=None):
 
 def TinyToyStack(x, filters, block_num, first_shortcut=True, name=None):
     """
-    First stack of ToyNet not include conv-shortcut
+    First stack of ToyNet not include conv-shortcut.
+    If frist block has shortcut, its stride is 2.
+    See https://arxiv.org/abs/1512.03385
     """
     if first_shortcut:
         # first block has conv-shortcut
@@ -50,7 +53,8 @@ def TinyToyStack(x, filters, block_num, first_shortcut=True, name=None):
 
 def ToyNet(input_shape, block_nums, classes=10, model_name='my_toynet'):
     """
-    Base on ResNet, add preact-opt and dropout
+    Base on ResNet, add preact-opt and dropout,
+    Using CIFAR10 as default dataset, so classes is 10.
     """
     inputs = Input(shape=input_shape)
 

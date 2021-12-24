@@ -49,8 +49,8 @@ def load_processed_cifar10():
     return (x_train, y_train), (x_test, y_test)
 
 def training_callbacks(case_name):
-    ckpt_path = f'training/toynet20/{case_name}/ckpt'
-    log_path = f'training/toynet20/{case_name}/log'
+    ckpt_path = f'training/{case_name}/ckpt'
+    log_path = f'training/{case_name}/log'
 
     lr_scheduler = ExponentialDecay(
         initial_learning_rate=1e-3, 
@@ -80,6 +80,7 @@ if __name__ == '__main__':
     # set random seed
     set_seed(seed=2021)
 
+    # load categorical cifar10 dataset
     (x_train, y_train), (x_test, y_test) = load_processed_cifar10()
 
     model = ToyNet14((32, 32, 3), 10)
@@ -89,17 +90,18 @@ if __name__ == '__main__':
                     metrics=['accuracy'])
     model.summary()
 
+    # enlarged training set, and standardize whole dataset. 
     datagen.fit(x_train)
     standardizer.fit(x_train)
+
     callbacks=training_callbacks(case_name)
-    
     model.fit(x=datagen.flow(x_train, y_train, subset='training'), 
         validation_data=datagen.flow(x_train, y_train, subset='validation'), 
         verbose=1, callbacks=callbacks, epochs=epochs)
 
     # save training result
-    model.save_weights(f'training/toynet20/{case_name}/model.h5') 
-    plot_model(model, to_file=f'training/toynet20/{case_name}/model.png', show_shapes=True)
+    model.save_weights(f'training/{case_name}/model.h5') 
+    plot_model(model, to_file=f'training/{case_name}/model.png', show_shapes=True)
 
     scores = model.evaluate(standardizer.flow(x_test, y_test, ), verbose=1)
     print('\nTest result: %.3f loss: %.3f' % (scores[1] * 100,scores[0]))

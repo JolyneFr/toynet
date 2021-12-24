@@ -1,83 +1,24 @@
 from tensorflow.keras import Model
 from tensorflow.python.keras.layers.core import Activation
 from tensorflow.keras.layers import (
-    ZeroPadding2D, Conv2D, MaxPooling2D, BatchNormalization, Dropout,
+    Conv2D, MaxPooling2D, BatchNormalization, Dropout,
     Activation, Add, GlobalAveragePooling2D, Dense, Input
 )
 
 eps = 1e-3
 
-def ToyBlock(x, filters, stride=1, kernal_size=3, shortcut_kind='Pool', name=None):
-    # preact
-    preact = BatchNormalization(axis=-1, epsilon=eps, name=name+'_preact_bn')(x)
-    preact = Activation('relu', name=name+'_preact_relu')(preact)
-
-    # 2 kinds of short-cut
-    if shortcut_kind == 'Conv':
-        shortcut = Conv2D(4 * filters, 1, strides=stride, name=name+'_shortcut_conv')(preact)
-    elif shortcut_kind == 'Pool':
-        shortcut = MaxPooling2D(1, strides=stride, name=name+'_shortcut_pool')(x) if stride > 1 else x
-
-    x = Conv2D(filters, 1, strides=1, use_bias=False, name=name+'_1_conv')(preact)
-    x = BatchNormalization(axis=-1, epsilon=eps, name=name+'_1_bn')(x)
-    x = Activation('relu', name=name+'_1_relu')(x)
-
-    # Add zero-padding to make shape same
-    x = ZeroPadding2D(padding=((1, 1), (1, 1)), name=name+'_2_pad')(x)
-    x = Conv2D(filters, kernal_size, strides=stride, use_bias=False, name=name+'_2_conv')(x)
-    x = BatchNormalization(axis=-1, epsilon=eps, name=name+'_2_bn')(x)
-    x = Activation('relu', name=name+'_2_relu')(x)
-
-    x = Conv2D(4 * filters, 1, name=name+'_3_conv')(x)
-    x = Add(name=name+'_merge')([shortcut, x])
-    return x
-
-def ToyStack(x, filters, block_num, final_stride=2, name=None):
-    x = ToyBlock(x, filters, shortcut_kind='Conv', name=name+'_block1')
-    for idx in range(2, block_num):
-        x = ToyBlock(x, filters, name=name+'_block'+str(idx))
-    x = ToyBlock(x, filters, stride=final_stride, name=name+'_block'+str(block_num))
-    return x
-    
-
-def ToyNet50(input_shape, classes=10, model_name='my_toynet'):
-    """
-    Base on ResNet50_v2 
-    """
-    inputs = Input(shape=input_shape)
-
-    x = ZeroPadding2D(padding=((3, 3), (3, 3)), name='conv1_pad')(inputs)
-    x = Conv2D(64, 7, strides=2, name='conv1_conv')(x)
-
-    x = ZeroPadding2D(padding=((1, 1), (1, 1)), name='pool1_pad')(x)
-    x = MaxPooling2D(3, strides=2, name='pool1_pool')(x)
-
-    x = ToyStack(x, 64, 3, name='conv2')
-    x = ToyStack(x, 128, 4, name='conv3')
-    x = ToyStack(x, 256, 6, name='conv4')
-    x = ToyStack(x, 512, 3, final_stride=1, name='conv5')
-
-    x = BatchNormalization(-1, epsilon=eps, name='final_bn')(x)
-    x = Activation('relu', name='final_relu')(x)
-
-    x = GlobalAveragePooling2D(name='avg_pool')(x)
-    outputs = Dense(classes, activation='softmax', name='predictions')(x)
-
-    return Model(inputs, outputs, name=model_name)
-
-
-
 
 def TinyToyBlock(x, filters, stride=1, shortcut_kind='Pool', name=None):
     """
-    Base on ResNet20_v1, 
-    which includes 2 x (3 x 3) Conv2D-BN-ReLU units.
-    Consider matching the output between shortcut & main.
+    Base on basic_block of ResNet, 
+    which includes 2 x (3 x 3) Conv2D-BN-ReLU units (BN-ReLU-Conv2D after preact).
     Preact optmize: put bn & relu before each conv2, it just works.
+    To avoid overfitting, add dropout after Conv2D
     """
 
     x = BatchNormalization(axis=-1, epsilon=eps, name=name+'_1_bn')(x)
     x = Activation('relu', name=name+'_1_relu')(x)
+    x = Dropout(0.15, name=name+'_1_dropout')(x)
 
     if shortcut_kind == 'Conv':
         shortcut = Conv2D(filters, 1, strides=stride, use_bias=False, padding='same', name=name+'_shortcut_conv')(x)
@@ -88,6 +29,7 @@ def TinyToyBlock(x, filters, stride=1, shortcut_kind='Pool', name=None):
     
     x = BatchNormalization(axis=-1, epsilon=eps, name=name+'_2_bn')(x)
     x = Activation('relu', name=name+'_2_relu')(x)
+    x = Dropout(0.15, name=name+'_2_dropout')(x)
     x = Conv2D(filters, 3, strides=1, use_bias=False, padding='same', name=name+'_2_conv')(x)
 
     x = Add(name=name+'_merge')([shortcut, x])
@@ -95,7 +37,7 @@ def TinyToyBlock(x, filters, stride=1, shortcut_kind='Pool', name=None):
 
 def TinyToyStack(x, filters, block_num, first_shortcut=True, name=None):
     """
-    First stack of ToyNet20 not include conv-shortcut
+    First stack of ToyNet not include conv-shortcut
     """
     if first_shortcut:
         # first block has conv-shortcut
@@ -106,25 +48,30 @@ def TinyToyStack(x, filters, block_num, first_shortcut=True, name=None):
         x = TinyToyBlock(x, filters, name=name+'_block'+str(idx))
     return x
 
-def ToyNet18(input_shape, classes=10, model_name='my_toynet'):
+def ToyNet(input_shape, block_nums, classes=10, model_name='my_toynet'):
     """
-    Base on ResNet18, add preact-opt
+    Base on ResNet, add preact-opt and dropout
     """
     inputs = Input(shape=input_shape)
 
     x = Conv2D(64, 3, strides=1, padding='same', use_bias=False, name='conv1_conv')(inputs)
 
-    x = TinyToyStack(x, 64, 2, first_shortcut=False, name='conv2')
-    x = TinyToyStack(x, 128, 2, name='conv3')
-    x = TinyToyStack(x, 256, 2, name='conv4')
-    x = TinyToyStack(x, 512, 2, name='conv5')
+    x = TinyToyStack(x, 64, block_nums[0], first_shortcut=False, name='conv2')
+    x = TinyToyStack(x, 128, block_nums[1], name='conv3')
+    x = TinyToyStack(x, 256, block_nums[2], name='conv4')
+    x = TinyToyStack(x, 512, block_nums[3], name='conv5')
 
     x = GlobalAveragePooling2D(name='avg_pool')(x)
+    x = Dropout(0.5, name='pool_dropout')(x)
     outputs = Dense(classes, activation='softmax', kernel_initializer='he_normal', name='predictions')(x)
 
     return Model(inputs, outputs, name=model_name)
 
+def ToyNet18(input_shape, classes=10):
+    return ToyNet(input_shape, [2, 2, 2, 2], classes=classes, model_name='toynet20')
 
+def ToyNet14(input_shape, classes=10):
+    return ToyNet(input_shape, [1, 2, 2, 1], classes=classes, model_name='toynet13')
 
 
 

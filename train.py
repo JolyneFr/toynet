@@ -4,15 +4,14 @@ import random, os, sys
 from keras.datasets import cifar10
 from keras.utils import np_utils
 from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.optimizers.schedules import ExponentialDecay
+from tensorflow.keras.optimizers.schedules import ExponentialDecay, CosineDecay
 from keras.preprocessing.image import ImageDataGenerator
 from keras.callbacks import (
-    LearningRateScheduler, ReduceLROnPlateau, 
-    ModelCheckpoint, TensorBoard
+    LearningRateScheduler, ReduceLROnPlateau, TensorBoard
 )
 from tensorflow.keras.utils import plot_model
 
-from ToyNet.model import ToyNet18
+from ToyNet.model import ToyNet18, ToyNet14
 
 epochs = 100
 
@@ -32,22 +31,6 @@ standardizer = ImageDataGenerator(
     featurewise_center=True,
     featurewise_std_normalization=True
 )
-
-def lr_schedule_fn(epoch):
-    lrate = 6e-4
-    if epoch > 90:
-        lrate *= 2e-4
-    elif epoch > 80:
-        lrate *= 4e-4
-    elif epoch > 70:
-        lrate *= 8e-4
-    elif epoch > 55:
-        lrate *= 2e-3
-    elif epoch > 35:
-        lrate *= 3e-2
-    elif epoch > 15:
-        lrate *= 4e-1
-    return lrate
 
 def set_seed(seed=42):
     random.seed(seed)
@@ -69,15 +52,20 @@ def training_callbacks(case_name):
     ckpt_path = f'training/toynet20/{case_name}/ckpt'
     log_path = f'training/toynet20/{case_name}/log'
 
-    # checkpoint = ModelCheckpoint(filepath=ckpt_path,
-    #                          monitor='accuracy',
-    #                          verbose=1,
-    #                          save_freq=10,
-    #                          save_best_only=True)
+    lr_scheduler = ExponentialDecay(
+        initial_learning_rate=1e-3, 
+        decay_steps=epochs, 
+        decay_rate=8e-3
+    )
+
+    cos_scheduler = CosineDecay(
+        initial_learning_rate=1e-3, 
+        decay_steps=epochs
+    )
 
     return [
         ReduceLROnPlateau(factor=0.15, patience=5), 
-        LearningRateScheduler(lr_schedule_fn),
+        LearningRateScheduler(cos_scheduler),
         TensorBoard(log_dir=log_path, histogram_freq=1)
     ]
 
@@ -94,11 +82,10 @@ if __name__ == '__main__':
 
     (x_train, y_train), (x_test, y_test) = load_processed_cifar10()
 
-    model = ToyNet18((32, 32, 3), 10)
+    model = ToyNet14((32, 32, 3), 10)
 
-    lr_scheduler = ExponentialDecay(initial_learning_rate=1e-3, decay_steps=epochs, decay_rate=0.96)
     model.compile(loss='categorical_crossentropy',
-                    optimizer=Adam(learning_rate=6e-4), 
+                    optimizer=Adam(learning_rate=1e-3), 
                     metrics=['accuracy'])
     model.summary()
 

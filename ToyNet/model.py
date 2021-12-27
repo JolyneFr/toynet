@@ -22,6 +22,7 @@ def ToyBlock(x, filters, stride=1, shortcut_kind='Pool', name=None):
 
     if shortcut_kind == 'Conv':
         shortcut = Conv2D(filters, 1, strides=stride, use_bias=False, padding='same', name=name+'_shortcut_conv')(x)
+        shortcut = BatchNormalization(axis=-1, epsilon=eps, name=name+'_shortcut_bn')(shortcut)
     elif shortcut_kind == 'Pool':
         shortcut = MaxPooling2D(1, strides=stride, name=name+'_shortcut_pool')(x) if stride > 1 else x
 

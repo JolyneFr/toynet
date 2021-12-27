@@ -18,7 +18,6 @@ def ToyBlock(x, filters, stride=1, shortcut_kind='Pool', name=None):
 
     x = BatchNormalization(axis=-1, epsilon=eps, name=name+'_1_bn')(x)
     x = Activation('relu', name=name+'_1_relu')(x)
-    x = Dropout(0.15, name=name+'_1_dropout')(x)
 
     if shortcut_kind == 'Conv':
         shortcut = Conv2D(filters, 1, strides=stride, use_bias=False, padding='same', name=name+'_shortcut_conv')(x)
@@ -30,7 +29,6 @@ def ToyBlock(x, filters, stride=1, shortcut_kind='Pool', name=None):
     
     x = BatchNormalization(axis=-1, epsilon=eps, name=name+'_2_bn')(x)
     x = Activation('relu', name=name+'_2_relu')(x)
-    x = Dropout(0.15, name=name+'_2_dropout')(x)
     x = Conv2D(filters, 3, strides=1, use_bias=False, padding='same', name=name+'_2_conv')(x)
 
     x = Add(name=name+'_merge')([shortcut, x])

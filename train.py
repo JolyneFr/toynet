@@ -11,8 +11,10 @@ from keras.callbacks import (
 )
 from tensorflow.keras.utils import plot_model
 
+# Self-written CNN and Scheduler
 from ToyNet.model import ToyNet18, ToyNet14
 from ToyNet.pure_model import PureResNet18
+from cosine_annealing_scheduler import CosineAnnealingScheduler
 
 epochs = 100
 
@@ -63,6 +65,8 @@ def training_callbacks(case_name):
         initial_learning_rate=1e-3, 
         decay_steps=epochs
     )
+
+    ca_scheduler = CosineAnnealingScheduler(epochs, 1e-3)
 
     return [
         ReduceLROnPlateau(factor=0.15, patience=5), 

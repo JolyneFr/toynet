@@ -12,7 +12,7 @@ from keras.callbacks import (
 from tensorflow.keras.utils import plot_model
 
 # Self-written CNN and Scheduler
-from toynet.model import ToyNet18, ToyNet14
+from toynet.model import ToyNet18
 from toynet.pure_model import PureResNet18
 from scheduler.cosine_annealing_scheduler import CosineAnnealingScheduler
 

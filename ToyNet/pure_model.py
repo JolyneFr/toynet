@@ -1,3 +1,4 @@
+"""ResNet models for baseline"""
 from tensorflow.keras import Model
 from tensorflow.keras.layers import (
     Conv2D, MaxPooling2D, BatchNormalization, Dropout,

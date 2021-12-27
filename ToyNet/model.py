@@ -21,7 +21,6 @@ def ToyBlock(x, filters, stride=1, shortcut_kind='Pool', name=None):
 
     if shortcut_kind == 'Conv':
         shortcut = Conv2D(filters, 1, strides=stride, use_bias=False, padding='same', name=name+'_shortcut_conv')(x)
-        shortcut = BatchNormalization(axis=-1, epsilon=eps, name=name+'_shortcut_bn')(shortcut)
     elif shortcut_kind == 'Pool':
         shortcut = MaxPooling2D(1, strides=stride, name=name+'_shortcut_pool')(x) if stride > 1 else x
 
@@ -69,11 +68,19 @@ def ToyNet(input_shape, block_nums, classes=10, model_name='my_toynet'):
 
     return Model(inputs, outputs, name=model_name)
 
+
+def ToyNet14(input_shape, classes=10):
+    return ToyNet(input_shape, [1, 2, 2, 1], classes=classes, model_name='toynet14')
+
+
 def ToyNet18(input_shape, classes=10):
     return ToyNet(input_shape, [2, 2, 2, 2], classes=classes, model_name='toynet20')
 
-def ToyNet14(input_shape, classes=10):
-    return ToyNet(input_shape, [1, 2, 2, 1], classes=classes, model_name='toynet13')
+
+def ToyNet34(input_shape, classes=10):
+    return ToyNet(input_shape, [3, 4, 6, 3], classes=classes, model_name='toynet34')
+
+
 
 
 

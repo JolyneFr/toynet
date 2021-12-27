@@ -88,6 +88,7 @@ if __name__ == '__main__':
     # load categorical cifar10 dataset
     (x_train, y_train), (x_test, y_test) = load_processed_cifar10()
 
+    # Test baseline
     model = PureResNet18((32, 32, 3), 10)
 
     model.compile(loss='categorical_crossentropy',

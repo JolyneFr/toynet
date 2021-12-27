@@ -3,7 +3,6 @@ from tensorflow.keras.layers import (
     Conv2D, MaxPooling2D, BatchNormalization, Dropout,
     Activation, Add, GlobalAveragePooling2D, Dense, Input
 )
-from keras.applications.resnet import ResNet50
 
 eps = 1e-3
 

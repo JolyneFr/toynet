@@ -12,6 +12,7 @@ from keras.callbacks import (
 from tensorflow.keras.utils import plot_model
 
 from ToyNet.model import ToyNet18, ToyNet14
+from ToyNet.pure_model import PureResNet18
 
 epochs = 100
 
@@ -83,7 +84,7 @@ if __name__ == '__main__':
     # load categorical cifar10 dataset
     (x_train, y_train), (x_test, y_test) = load_processed_cifar10()
 
-    model = ToyNet14((32, 32, 3), 10)
+    model = PureResNet18((32, 32, 3), 10)
 
     model.compile(loss='categorical_crossentropy',
                     optimizer=Adam(learning_rate=1e-3), 
@@ -103,6 +104,6 @@ if __name__ == '__main__':
     model.save_weights(f'training/{case_name}/model.h5') 
     plot_model(model, to_file=f'training/{case_name}/model.png', show_shapes=True)
 
-    scores = model.evaluate(standardizer.flow(x_test, y_test, ), verbose=1)
+    scores = model.evaluate(standardizer.flow(x_test, y_test), verbose=1)
     print('\nTest result: %.3f loss: %.3f' % (scores[1] * 100,scores[0]))
     

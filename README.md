@@ -15,7 +15,7 @@ A specific conda-env is recommended.
 ## Training
 To train ToyNet using CIFAR10 dataset, just type
 ```shell
-python train.py <case-name>
+> python train.py <case-name>
 ```
 `case-name` denotes the name of current training case, which should be unique.
 > Example:\
@@ -26,7 +26,7 @@ python train.py <case-name>
 ## Result Visualization
 After training was done, run
 ```shell
-tensorboard --logdir training/<case_name>/log
+> tensorboard --logdir training/<case_name>/log
 ```
 Then you can see your actual training result at `http://localhost:6006/` by deafult.
 

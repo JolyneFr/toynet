@@ -1,14 +1,14 @@
 from tensorflow.keras import Model
-from tensorflow.python.keras.layers.core import Activation
 from tensorflow.keras.layers import (
     Conv2D, MaxPooling2D, BatchNormalization, Dropout,
     Activation, Add, GlobalAveragePooling2D, Dense, Input
 )
+from keras.applications.resnet import ResNet50
 
 eps = 1e-3
 
 
-def TinyToyBlock(x, filters, stride=1, shortcut_kind='Pool', name=None):
+def ToyBlock(x, filters, stride=1, shortcut_kind='Pool', name=None):
     """
     Base on basic_block of ResNet, 
     which includes 2 x (3 x 3) Conv2D-BN-ReLU units (BN-ReLU-Conv2D after preact).
@@ -36,7 +36,7 @@ def TinyToyBlock(x, filters, stride=1, shortcut_kind='Pool', name=None):
     x = Add(name=name+'_merge')([shortcut, x])
     return x
 
-def TinyToyStack(x, filters, block_num, first_shortcut=True, name=None):
+def ToyStack(x, filters, block_num, first_shortcut=True, name=None):
     """
     First stack of ToyNet not include conv-shortcut.
     If frist block has shortcut, its stride is 2.
@@ -44,26 +44,26 @@ def TinyToyStack(x, filters, block_num, first_shortcut=True, name=None):
     """
     if first_shortcut:
         # first block has conv-shortcut
-        x = TinyToyBlock(x, filters, stride=2, shortcut_kind='Conv', name=name+'_block1')
+        x = ToyBlock(x, filters, stride=2, shortcut_kind='Conv', name=name+'_block1')
     else:
-        x = TinyToyBlock(x, filters, name=name+'_block1')
+        x = ToyBlock(x, filters, name=name+'_block1')
     for idx in range(2, block_num + 1):
-        x = TinyToyBlock(x, filters, name=name+'_block'+str(idx))
+        x = ToyBlock(x, filters, name=name+'_block'+str(idx))
     return x
 
 def ToyNet(input_shape, block_nums, classes=10, model_name='my_toynet'):
     """
-    Base on ResNet, add preact-opt and dropout,
+    Base on ResNet, add preact-opt and dropout,\\
     Using CIFAR10 as default dataset, so classes is 10.
     """
     inputs = Input(shape=input_shape)
 
     x = Conv2D(64, 3, strides=1, padding='same', use_bias=False, name='conv1_conv')(inputs)
 
-    x = TinyToyStack(x, 64, block_nums[0], first_shortcut=False, name='conv2')
-    x = TinyToyStack(x, 128, block_nums[1], name='conv3')
-    x = TinyToyStack(x, 256, block_nums[2], name='conv4')
-    x = TinyToyStack(x, 512, block_nums[3], name='conv5')
+    x = ToyStack(x, 64, block_nums[0], first_shortcut=False, name='conv2')
+    x = ToyStack(x, 128, block_nums[1], name='conv3')
+    x = ToyStack(x, 256, block_nums[2], name='conv4')
+    x = ToyStack(x, 512, block_nums[3], name='conv5')
 
     x = GlobalAveragePooling2D(name='avg_pool')(x)
     x = Dropout(0.5, name='pool_dropout')(x)

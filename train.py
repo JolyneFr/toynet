@@ -14,7 +14,7 @@ from tensorflow.keras.utils import plot_model
 # Self-written CNN and Scheduler
 from ToyNet.model import ToyNet18, ToyNet14
 from ToyNet.pure_model import PureResNet18
-from cosine_annealing_scheduler import CosineAnnealingScheduler
+from Scheduler.cosine_annealing_scheduler import CosineAnnealingScheduler
 
 epochs = 100
 

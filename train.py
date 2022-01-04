@@ -4,17 +4,16 @@ import random, os, sys
 from keras.datasets import cifar10
 from keras.utils import np_utils
 from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.optimizers.schedules import ExponentialDecay, CosineDecay
+from tensorflow.keras.optimizers.schedules import (
+    ExponentialDecay, CosineDecay, CosineDecayRestarts)
 from keras.preprocessing.image import ImageDataGenerator
 from keras.callbacks import (
-    LearningRateScheduler, ReduceLROnPlateau, TensorBoard
-)
+    LearningRateScheduler, ReduceLROnPlateau, TensorBoard)
 from tensorflow.keras.utils import plot_model
 
 # Self-written CNN and Scheduler
-from toynet.model import ToyNet18
+from toynet.model import ToyNet14
 from toynet.pure_model import PureResNet18
-from scheduler.cosine_annealing_scheduler import CosineAnnealingScheduler
 
 epochs = 100
 
@@ -66,11 +65,18 @@ def training_callbacks(case_name):
         decay_steps=epochs
     )
 
-    ca_scheduler = CosineAnnealingScheduler(epochs, 1e-3)
+    ca_restart = CosineDecayRestarts(
+        initial_learning_rate=8e-4,
+        first_decay_steps=51,
+        t_mul=1,
+        m_mul=0.8,
+        alpha=5e-3
+    )
 
     return [
         ReduceLROnPlateau(factor=0.15, patience=5), 
         LearningRateScheduler(cos_scheduler),
+        # CosineAnnealingScheduler(epochs, 8e-4),
         TensorBoard(log_dir=log_path, histogram_freq=1)
     ]
 
@@ -89,10 +95,10 @@ if __name__ == '__main__':
     (x_train, y_train), (x_test, y_test) = load_processed_cifar10()
 
     # Test baseline
-    model = PureResNet18((32, 32, 3), 10)
+    model = ToyNet14((32, 32, 3), 10)
 
     model.compile(loss='categorical_crossentropy',
-                    optimizer=Adam(learning_rate=1e-3), 
+                    optimizer=Adam(learning_rate=8e-4), 
                     metrics=['accuracy'])
     model.summary()
 
@@ -100,7 +106,7 @@ if __name__ == '__main__':
     datagen.fit(x_train)
     standardizer.fit(x_train)
 
-    callbacks=training_callbacks(case_name)
+    callbacks = training_callbacks(case_name)
     model.fit(x=datagen.flow(x_train, y_train, subset='training'), 
         validation_data=datagen.flow(x_train, y_train, subset='validation'), 
         verbose=1, callbacks=callbacks, epochs=epochs)

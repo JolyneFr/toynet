@@ -1,10 +1,10 @@
 from tensorflow.keras import Model
 from tensorflow.keras.layers import (
-    Conv2D, MaxPooling2D, BatchNormalization, Dropout,
+    Conv2D, MaxPooling2D, BatchNormalization, Dropout, Flatten,
     Activation, Add, GlobalAveragePooling2D, Dense, Input
 )
 
-eps = 1e-3
+eps = 1.001e-5
 
 
 def ToyBlock(x, filters, stride=1, shortcut_kind='Pool', name=None):
@@ -55,18 +55,26 @@ def ToyNet(input_shape, block_nums, classes=10, model_name='my_toynet'):
     """
     inputs = Input(shape=input_shape)
 
-    x = Conv2D(64, 3, strides=1, padding='same', use_bias=False, name='conv1_conv')(inputs)
+    x = Conv2D(32, 3, strides=1, padding='same', use_bias=False, name='conv1_conv')(inputs)
 
-    x = ToyStack(x, 64, block_nums[0], first_shortcut=False, name='conv2')
-    x = ToyStack(x, 128, block_nums[1], name='conv3')
-    x = ToyStack(x, 256, block_nums[2], name='conv4')
-    x = ToyStack(x, 512, block_nums[3], name='conv5')
+    x = ToyStack(x, 32, block_nums[0], first_shortcut=False, name='conv2')
+    x = ToyStack(x, 64, block_nums[1], name='conv3')
+    x = ToyStack(x, 128, block_nums[2], name='conv4')
+    x = ToyStack(x, 256, block_nums[3], name='conv5')
+
+    x = BatchNormalization(axis=-1, epsilon=eps, name='final_bn')(x)
+    x = Activation('relu', name='final_relu')(x)
 
     x = GlobalAveragePooling2D(name='avg_pool')(x)
-    x = Dropout(0.5, name='pool_dropout')(x)
-    outputs = Dense(classes, activation='softmax', kernel_initializer='he_normal', name='predictions')(x)
+    x = Dropout(0.6, name='final_dropout')(x)
+    outputs = Dense(classes, activation='softmax', kernel_initializer='he_normal', name='pred')(x)
+
 
     return Model(inputs, outputs, name=model_name)
+
+
+def ToyNet12(input_shape, classes=10):
+    return ToyNet(input_shape, [1, 1, 2, 1], classes=classes, model_name='toynet14')
 
 
 def ToyNet14(input_shape, classes=10):

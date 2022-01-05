@@ -1,6 +1,7 @@
 # ToyNet: Lightweight image classification network
 
-> this CNN is optimized specifically for CIFAR10 dataset
+> This CNN is optimized specifically for CIFAR10 dataset.\
+> We are dedicated to exploring the wonders of CNN rather than simply improving `test_accuracy`
 
 ## Environment
 Make sure all your code environments match the `requirements.txt`.

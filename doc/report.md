@@ -1,9 +1,9 @@
 # CNN Image Classifier: ToyNet
 Team Members: 杨镇宇, 潘浩楠, 李卓龙
 
-本项目主要致力于探索各种对模型的修改和训练方法的调整如何影响CNN。为此，我们构建了一个基于`ResNet`的残差神经网络：`ToyNet`，在之上对*CIFAR10*数据集进行训练和测试。
+本项目主要致力于探索各种对模型的修改和训练方法的调整如何影响CNN。为此，我们构建了一个基于`ResNet`的残差神经网络：`ToyNet`，在之上针对*CIFAR10*数据集进行训练和测试。
 
-<img src="./model_images/toynet.png" alt="keras" style="zoom:55%;" />
+<img src="./model_images/toynet.png" alt="keras" style="zoom:25%;" />
 
 `ToyNet`这个轻量级的残差神经网络允许我们对其进行模块化的修改和超参数调整，**Keras**提供的简明API也为整个实验过程带来方便，这些会在之后的章节详细介绍。我们先从数据预处理开始。
 
@@ -114,7 +114,7 @@ model.compile(loss='categorical_crossentropy', ...)
 
 网络中的最基本模块是**ToyBlock**，根据shortcut是否包含卷积层分为两类。其中shortcut包含卷积层的**ToyBlock**用于调整通道数，以便进行与主路进行相加运算。相比于普通CNN中的 *Conv->BN->ReLU*结构，pre-activation优化后的结构为*BN->ReLU->Conv*。
 
-<img src="./model_images/toyblock.png" alt="toyblock" style="zoom:40%;" />
+<img src="./model_images/toyblock.png" alt="toyblock" style="zoom:25%;" />
 
 典型的CNN（比如VGG、ResNet、DenseNet、EfficientNet...）都是让通道数随着网络的加深而逐渐翻倍的，因此**ToyNet**也效仿了这样的做法，将卷积层通道数相同的**ToyBlock**由统一的结构**ToyStack**聚合在一起管理。
 
@@ -122,7 +122,7 @@ model.compile(loss='categorical_crossentropy', ...)
 
 下图左侧描述了**ToyStack**的结构，右侧是**ToyStack18**的全局结构。
 
-<img src="./model_images/toystack.png" alt="toystack_net" style="zoom:45%;" />
+<img src="./model_images/toystack.png" alt="toystack_net" style="zoom:33%;" />
 
 **ToyStack14**的block_num配置调整为[1, 2, 2, 1]。
 
@@ -156,7 +156,7 @@ ReduceLROnPlateau(factor=0.15, monitor='val_loss', patience=5)
 
 下面是一段指数型(*ExponentialDecay*)学习率/epoch曲线，中间下降的点发生了条件性学习率衰减。
 
-<img src="./model_images/lr_drop.png" alt="lr_drop" style="zoom:43%;" />
+<img src="./model_images/lr_drop.png" alt="lr_drop" style="zoom:27%;" />
 
 #### 余弦衰减学习率
 
@@ -198,5 +198,82 @@ Test accuracy: 92.440% Test Loss: 0.438
 + 为防止过拟合，采用的**ToyNet**层数小于18层，因此最终的准确率可能不会优于**PureResNet**
 + 前提同上，**ToyNet**由此能拥有更强的泛化能力，我们有理由期待Test Loss值低于baseline
 
-### 训练过程
+### 训练过程：调参实验及结果分析
 
+> **模型训练**和**调参**是紧密相关、相互耦合的，把这两部分放在一起能使报告逻辑更顺畅。
+
+调整模型有两个主要目标：**提升预测准确率**和**增强泛化能力**。为此，实验中对以下参数/结构进行过调整：
+
++ 修改卷积层和全连接层的总数量（50、34、18、14）
++ 修改各层卷积核数量（[16, 32, 64, 128]、[32, 64, 128, 256]、[64, 128, 256, 512]）
++ 向神经网络中加入Dropout层（卷积层（尝试性）和全连接层）和修改Dropout概率
++ 调整卷积层、BN层、ReLU层的顺序（灵感来自论文）
++ 在训练中尝试不同种类和参数的学习率曲线（阶梯形、指数下降、余弦退火、余弦重启）
+
+接下来按照实验过程中的调整顺序叙述我们的调参过程和结果分析。
+
+由于每次尝试训练时间较长，为了提高效率，可能会出现**一次调整多个参数 / 提前手动终止效果不佳的训练**的情况。我们将在叙述中尽量分析多个参数各自造成的结果，以及说明提前手动终止的原因。
+
+#### 初始模型 toynet20_init
+
+这是参考**ResNet20**的原始实现，阶梯下降型学习率**[1e-3, 1e-4, 1e-5]**，没有Dropout层。
+网络各阶段卷积核数量：**[16, 32, 64, 128]**；各阶段**ToyBlock**数量：**[2, 2, 2, 2]**
+
+> Recall: **ToyBlock**是**ToyNet**的最基础模块，包含了两个卷积层
+> 因此**ToyBlock**的数量越多，网络层数越深，CNN包含的参数量越多
+
+**训练结果：**
+```shell
+Test accuracy: 89.443% Test Loss: 0.3391
+```
+![1_init](./graph/1_init/output.png)
+
+最左侧是`epoch_accuracy`曲线，描述每个epoch结束时模型在训练/验证集上的准确率；中间的`epoch_loss`曲线是各epoch中*Cross Entropy Loss*的值；最右侧可以看到每个epoch采用的学习率*Learning Rate*。之后的迭代不再对每张图片的曲线含义进行重复说明。
+
+**结果分析：**观察到40个epoch前**验证集的acc和loss不稳定**，根据上课讲解的知识，这是**学习率过大**导致模型在参数空间的最优值上方**反复横跳**造成的；因此，可以解释为什么40个epoch**学习率阶梯下降**后训练集和验证集的**accuracy**和**loss**都有显著的优化，并且曲线变得平滑。这说明了**初始学习率对于该模型来说过高**。
+
+**参数调整：**降低阶梯型学习曲线的初始学习率
+
+#### 减半初始学习率模型 toynet20_half_lr
+
+将学习率减半后，阶梯下降型学习率**[5e-4, 5e-5, 1e-5]**，没有Dropout层。
+网络各阶段卷积核数量：**[16, 32, 64, 128]**；各阶段**ToyBlock**数量：**[2, 2, 2, 2]**
+
+**训练结果：**
+```shell
+Test accuracy: 88.343% Test Loss: 0.3476
+```
+![2_half_lr](./graph/2_half_lr/output.png)
+
+**结果分析：**缩小初始学习率后，观察到初始训练曲线（*Accuracy*以及*Loss*）的抖动情况有所缓解，但是学习率调小导致100个epoch时的最终*Test Accuracy*有所下降，有可能是**过小的学习率使得模型未达到收敛状态**。
+另外注意到，在准确率曲线的平缓区（60个epoch之后），训练集和验证集的准确率一直有稳定的差距。我们认为这可能是**模型的泛化能力不足**导致**不能将训练集上的普遍特征提取出来**，因此，决定在下一个迭代模型加入Dropout层，以此**减少过拟合**，以提高泛化能力。
+
+**参数调整：**尝试在**ToyNet**的全连接部分加入Dropout层，并适当回升学习率。
+
+#### 可泛化模型：toynet20_with_dropout
+
+全连接层加入了参数$\alpha=0.5$的Dropout层，保持阶梯下降型学习率**[7e-4, 27e-5, 27e-6]**。
+网络各阶段卷积核数量：**[16, 32, 64, 128]**；各阶段**ToyBlock**数量：**[2, 2, 2, 2]**
+
+**训练结果：**
+```shell
+Test accuracy: 88.457% Test Loss: 0.3349
+```
+![3_add_dropout](./graph/3_add_dropout/output.png)
+
+**结果分析：**肉眼可见的是，*Accuracy*曲线和*Loss*曲线上，训练集和验证集的差距变小了，说明Dropout层确实能增强模型的泛化能力。但是加入$\alpha=0.5$的Dropout相当于全连接层的**参数数量减半**，因此模型训练的收敛速度更慢了。为了切实提高最终预测的准确率，我们决定**提高模型复杂度**。
+
+**参数调整：**将网络各阶段的卷积核数量增为原有的四倍，并尝试使用[Pre-Activation优化](https://arxiv.org/abs/1603.05027)，暂时去掉Dropout
+
+#### 多卷积核模型：toynet20_more_filters_with_preact
+
+阶梯下降型学习率**[6e-4, 24e-5, 24e-6]**，没有Dropout层。
+网络各阶段卷积核数量：**[64, 128, 256, 512]**；各阶段**ToyBlock**数量：**[2, 2, 2, 2]**
+
+**训练结果：**
+
+```shell
+Test accuracy: 91.930% Test Loss: 0.3255
+```
+
+![4_filters_preact](./graph/4_preact/output.png)

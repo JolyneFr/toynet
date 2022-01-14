@@ -37,6 +37,8 @@ ToyNet is inspired by [ResNet](https://arxiv.org/abs/1512.03385), using shortcut
 See: doc/report.pdf
 
 ## Model Result:
-Final Accuracy: $92.330%$
-Final Cross-Entropy Loss: $0.3001$
+
+Final Accuracy: `92.330%`
+
+Final Cross-Entropy Loss: `0.3001`
 

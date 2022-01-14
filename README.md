@@ -34,5 +34,9 @@ Then you can see your actual training result at `http://localhost:6006/` by deaf
 ## Model Introduction
 ToyNet is inspired by [ResNet](https://arxiv.org/abs/1512.03385), using shortcut to achieve deeper layers.\
 ...\
-TODO: add model image and statistics after completing my final project of elective course.
+See: doc/report.pdf
+
+## Model Result:
+Final Accuracy: $92.330%$
+Final Cross-Entropy Loss: $0.3001$
 

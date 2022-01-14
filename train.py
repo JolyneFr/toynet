@@ -93,6 +93,7 @@ if __name__ == '__main__':
 
     # load categorical cifar10 dataset
     (x_train, y_train), (x_test, y_test) = load_processed_cifar10()
+    _, (test_images, test_labels) = cifar10.load_data()
 
     # Test baseline
     model = ToyNet14((32, 32, 3), 10)
